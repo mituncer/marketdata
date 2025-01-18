@@ -3,77 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Currency Exchange Rates</title>
+    <title>Financial Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            font-size: 14px;
+            background-color: #f5f5f5;
         }
-        .rate-container {
-            max-width: 500px;
+        .dashboard {
+            max-width: 800px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .widget {
+            background: #fff;
             padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .rates-wrapper {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-        }
-        .rate-box {
-            flex: 1;
-            background-color: #f8f9fa;
-            padding: 12px;
-            border-radius: 3px;
-            border: 1px solid #e9ecef;
-        }
-        .rate-pair {
+        .header {
             font-size: 0.9em;
             font-weight: bold;
-            color: #495057;
+            color: #666;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
         }
-        .rate-value {
-            display: block;
-            font-size: 1.1em;
-            color: #2c3e50;
-            margin-top: 5px;
+        .value {
+            font-size: 1.2em;
             font-weight: bold;
+            color: #2c3e50;
+        }
+        .change {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .positive {
+            color: #28a745;
+        }
+        .negative {
+            color: #dc3545;
         }
         .timestamp {
             font-size: 0.75em;
-            color: #6c757d;
+            color: #999;
             text-align: center;
-            margin-top: 12px;
-            border-top: 1px solid #dee2e6;
-            padding-top: 8px;
-        }
-        h2 {
-            font-size: 1.1em;
-            margin: 0 0 15px 0;
-            color: #343a40;
-            text-align: center;
+            margin-top: 20px;
+            grid-column: 1 / -1;
         }
     </style>
 </head>
 <body>
-    <div class="rate-container">
-        <h2>Currency Exchange Rates</h2>
-        <div class="rates-wrapper">
-            <div class="rate-box">
-                <div class="rate-pair">
-                    USD/TRY
-                    <span id="usdtry" class="rate-value">Loading...</span>
-                </div>
+    <div class="dashboard">
+        <div class="widget">
+            <div class="header">BIST 100 (TRY)</div>
+            <div class="value" id="bistValue">Loading...</div>
+            <div class="change" id="bistChange"></div>
+        </div>
+        <div class="widget">
+            <div class="header">BIST 100 (USD)</div>
+            <div class="value" id="bistUsdValue">Loading...</div>
+            <div class="change" id="bistUsdChange"></div>
+        </div>
+        <div class="widget">
+            <div class="header">GLRMK</div>
+            <div class="value" id="glrmkValue">Loading...</div>
+            <div class="change" id="glrmkChange"></div>
+        </div>
+        <div class="widget">
+            <div class="header">Currency Rates</div>
+            <div style="margin-bottom: 10px;">
+                <span style="color: #666;">USD/TRY:</span>
+                <span class="value" id="usdtry" style="font-size: 1em;">Loading...</span>
             </div>
-            <div class="rate-box">
-                <div class="rate-pair">
-                    EUR/TRY
-                    <span id="eurtry" class="rate-value">Loading...</span>
-                </div>
+            <div>
+                <span style="color: #666;">EUR/TRY:</span>
+                <span class="value" id="eurtry" style="font-size: 1em;">Loading...</span>
             </div>
         </div>
         <div class="timestamp" id="lastUpdate"></div>
@@ -81,51 +89,98 @@
 
     <script>
         const config = {
-            apiEndpoint: 'https://api.frankfurter.app/latest',
-            refreshInterval: 60000 * 60 // Update every hour since data updates daily
+            refreshInterval: 60000, // Update every minute
+            frankfurterEndpoint: 'https://api.frankfurter.app/latest',
+            yahooEndpoint: 'https://query1.finance.yahoo.com/v8/finance/chart'
         };
 
-        function formatCurrency(number) {
-            return number.toFixed(4);
+        function formatCurrency(number, decimals = 2) {
+            return number.toFixed(decimals);
         }
 
-        function updateRates(data) {
-            document.getElementById('usdtry').textContent = formatCurrency(data.usdtry);
-            document.getElementById('eurtry').textContent = formatCurrency(data.eurtry);
+        function updateTimestamp() {
             document.getElementById('lastUpdate').textContent = 
                 `Last updated: ${new Date().toLocaleTimeString()}`;
         }
 
-        async function fetchRates() {
+        async function fetchForexRates() {
             try {
-                // Fetch EUR/TRY rate
-                const eurResponse = await fetch(`${config.apiEndpoint}?from=EUR&to=TRY`);
-                if (!eurResponse.ok) throw new Error(`HTTP error! status: ${eurResponse.status}`);
-                const eurData = await eurResponse.json();
+                const eurResponse = await fetch(`${config.frankfurterEndpoint}?from=EUR&to=TRY`);
+                const usdResponse = await fetch(`${config.frankfurterEndpoint}?from=USD&to=TRY`);
                 
-                // Fetch USD/TRY rate
-                const usdResponse = await fetch(`${config.apiEndpoint}?from=USD&to=TRY`);
-                if (!usdResponse.ok) throw new Error(`HTTP error! status: ${usdResponse.status}`);
+                const eurData = await eurResponse.json();
                 const usdData = await usdResponse.json();
 
-                const rates = {
-                    eurtry: eurData.rates.TRY,
-                    usdtry: usdData.rates.TRY
-                };
+                document.getElementById('usdtry').textContent = formatCurrency(usdData.rates.TRY, 4);
+                document.getElementById('eurtry').textContent = formatCurrency(eurData.rates.TRY, 4);
 
-                updateRates(rates);
+                return usdData.rates.TRY; // Return USD/TRY rate for BIST USD calculation
             } catch (error) {
-                console.error('Error fetching rates:', error);
+                console.error('Error fetching forex rates:', error);
                 document.getElementById('usdtry').textContent = 'Error';
                 document.getElementById('eurtry').textContent = 'Error';
+                return null;
+            }
+        }
+
+        async function fetchStockData() {
+            try {
+                // Fetch BIST 100 data (XU100.IS is the Yahoo Finance symbol for BIST 100)
+                const bistResponse = await fetch(`${config.yahooEndpoint}/XU100.IS`);
+                const bistData = await bistResponse.json();
+                const bistPrice = bistData.chart.result[0].meta.regularMarketPrice;
+                const bistPrevClose = bistData.chart.result[0].meta.previousClose;
+                const bistChange = bistPrice - bistPrevClose;
+                const bistChangePercent = (bistChange / bistPrevClose) * 100;
+
+                // Fetch GLRMK data
+                const glrmkResponse = await fetch(`${config.yahooEndpoint}/GLRMK.IS`);
+                const glrmkData = await glrmkResponse.json();
+                const glrmkPrice = glrmkData.chart.result[0].meta.regularMarketPrice;
+                const glrmkPrevClose = glrmkData.chart.result[0].meta.previousClose;
+                const glrmkChange = glrmkPrice - glrmkPrevClose;
+                const glrmkChangePercent = (glrmkChange / glrmkPrevClose) * 100;
+
+                // Get USD/TRY rate for conversion
+                const usdTryRate = await fetchForexRates();
+                const bistUsdPrice = bistPrice / usdTryRate;
+                const bistUsdPrevPrice = bistPrevClose / usdTryRate;
+                const bistUsdChange = bistUsdPrice - bistUsdPrevPrice;
+                const bistUsdChangePercent = (bistUsdChange / bistUsdPrevPrice) * 100;
+
+                // Update BIST TRY values
+                document.getElementById('bistValue').textContent = `₺${formatCurrency(bistPrice)}`;
+                document.getElementById('bistChange').textContent = 
+                    `${bistChange >= 0 ? '+' : ''}${formatCurrency(bistChange)} (${formatCurrency(bistChangePercent)}%)`;
+                document.getElementById('bistChange').className = `change ${bistChange >= 0 ? 'positive' : 'negative'}`;
+
+                // Update BIST USD values
+                document.getElementById('bistUsdValue').textContent = `$${formatCurrency(bistUsdPrice)}`;
+                document.getElementById('bistUsdChange').textContent = 
+                    `${bistUsdChange >= 0 ? '+' : ''}${formatCurrency(bistUsdChange)} (${formatCurrency(bistUsdChangePercent)}%)`;
+                document.getElementById('bistUsdChange').className = `change ${bistUsdChange >= 0 ? 'positive' : 'negative'}`;
+
+                // Update GLRMK values
+                document.getElementById('glrmkValue').textContent = `₺${formatCurrency(glrmkPrice)}`;
+                document.getElementById('glrmkChange').textContent = 
+                    `${glrmkChange >= 0 ? '+' : ''}${formatCurrency(glrmkChange)} (${formatCurrency(glrmkChangePercent)}%)`;
+                document.getElementById('glrmkChange').className = `change ${glrmkChange >= 0 ? 'positive' : 'negative'}`;
+
+                updateTimestamp();
+            } catch (error) {
+                console.error('Error fetching stock data:', error);
+                document.getElementById('bistValue').textContent = 'Error';
+                document.getElementById('bistUsdValue').textContent = 'Error';
+                document.getElementById('glrmkValue').textContent = 'Error';
             }
         }
 
         // Initial fetch
-        fetchRates();
+        fetchStockData();
 
         // Set up periodic updates
-        setInterval(fetchRates, config.refreshInterval);
+        setInterval(fetchStockData, config.refreshInterval);
     </script>
 </body>
 </html>
+Last edited just now
