@@ -20,6 +20,21 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.loading {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.rate-up {
+    color: #22c55e;
+    transition: color 0.3s ease;
+}
+
+.rate-down {
+    color: #ef4444;
+    transition: color 0.3s ease;
+}
+
 .header {
     font-size: 0.9em;
     font-weight: bold;
